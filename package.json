@@ -4,9 +4,9 @@
     "description": "A typescript library for managing NBT formatted files",
     "main": "app.js",
     "scripts": {
-        "build": "rollup --config rollup.config.js"
+        "build": "rollup --config rollup.config.mjs",
+        "debug": "rollup --config rollup.config.mjs && node ./dist/app.js"
     },
-    "type": "module",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/ipshing/nbt-ts.git"
