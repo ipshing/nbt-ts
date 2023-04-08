@@ -25,6 +25,7 @@ export class NbtFile {
      * @param rootTag The `NbtCompound` to assign to this file's root tag.
      * @throws {Error} Thrown if the name of the `rootTag` is `undefined`.
      */
+    constructor(rootTag: NbtCompound);
     constructor(rootTag?: NbtCompound) {
         this.#bigEndian = NbtFile.bigEndianByDefault;
         this.#fileCompression = NbtCompression.AutoDetect;
