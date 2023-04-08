@@ -5,6 +5,9 @@ import { NbtTagType } from "../Enums";
  * An NBT tag containing a single signed byte.
  */
 export class NbtByte extends NbtTag {
+    static readonly MIN_VALUE = -128;
+    static readonly MAX_VALUE = 127;
+
     #value = 0;
 
     /**
@@ -48,15 +51,14 @@ export class NbtByte extends NbtTag {
     /**
      * Gets or sets the value of this tag.
      *
-     * @throws {RangeError} Thrown if assigning a value that is not
-     * an integer ranging from -128 to 127, inclusive.
+     * @throws {RangeError} Thrown if assigning a value that is invalid for this type.
      */
     public get value(): number {
         return this.#value;
     }
     public set value(value: number) {
-        if (!Number.isSafeInteger(value) || value < -128 || value > 127) {
-            throw new RangeError("The value must be an integer from -128 to 127, inclusive.");
+        if (!Number.isSafeInteger(value) || value < NbtByte.MIN_VALUE || value > NbtByte.MAX_VALUE) {
+            throw new RangeError(`Value must be an integer from ${NbtByte.MIN_VALUE} to ${NbtByte.MAX_VALUE}, inclusive.`);
         }
         this.#value = value;
     }

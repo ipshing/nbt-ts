@@ -303,7 +303,7 @@ export class NbtBinaryStream {
      *
      * @throws {RangeError} Thrown if `count` is not 0 or an integer greater than 0.
      */
-    public readBytes(count: number): Int8Array {
+    public readBytes(count: number): number[] {
         if (!Number.isSafeInteger(count) || count < 0) {
             throw new RangeError("count must be a non-negative integer");
         }
@@ -314,12 +314,12 @@ export class NbtBinaryStream {
         }
 
         // Simply return an empty array if count is 0
-        if (count === 0) return new Int8Array();
+        if (count === 0) return [];
 
         // Read bytes into array
-        const result = new Int8Array(count);
+        const result: number[] = [];
         for (let i = 0; i < count; i++) {
-            result[i] = this.readByte();
+            result.push(this.readByte());
         }
 
         return result;

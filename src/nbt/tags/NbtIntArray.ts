@@ -1,66 +1,174 @@
 import { NbtTag } from "./NbtTag";
 import { NbtTagType } from "../Enums";
+import { NbtInt } from "./NbtInt";
 
 /**
  * An NBT tag containing an array of signed 4-byte integer values.
  */
 export class NbtIntArray extends NbtTag {
-    #ints: Int32Array = new Int32Array();
+    #ints: number[] = [];
 
     /**
-     * Creates an unnamed `NbtIntArray` tag with an empty array.
+     * Creates an unnamed, empty `NbtIntArray` tag.
      */
     constructor();
     /**
-     * Creates an `NbtIntArray` tag with the given name and an empty array.
+     * Creates an empty `NbtIntArray` tag with the given name.
      * @param tagName The name to assign to this tag.
      */
     constructor(tagName: string);
     /**
-     * Creates an unnamed `NbtIntArray` tag containing the given array.
-     * @param values The array to assign to this tag.
+     * Creates an unnamed `NbtIntArray` tag with the given length.
+     * All elements in the array will default to 0.
+     * @param arrayLength The starting length of the array.
      */
-    constructor(values: Int32Array);
+    constructor(arrayLength: number);
+    /**
+     * Creates an unnamed `NbtIntArray` tag containing the given array.
+     * @param elements The array to assign to this tag.
+     * @throws {RangeError} Thrown if a value in `elements` not a 4-byte signed integer.
+     */
+    constructor(elements: number[]);
+    /**
+     * Creates an `NbtIntArray` tag with the given name and length.
+     * All elements in the array will default to 0.
+     * @param tagName The name to assign to this tag.
+     * @param arrayLength The starting length of the array.
+     */
+    constructor(tagName: string, arrayLength: number);
     /**
      * Creates an `NbtIntArray` tag with the given name, containing the given array.
      * @param tagName The name to assign to this tag.
-     * @param values The array to assign to this tag.
+     * @param elements The array to assign to this tag.
+     * @throws {RangeError} Thrown if a value in `elements` not a 4-byte signed integer.
      */
-    constructor(tagName: string, values: Int32Array);
-    constructor(nameOrValue?: string | Int32Array, values?: Int32Array) {
+    constructor(tagName: string, elements: number[]);
+    constructor(nameSizeElements?: string | number | number[], sizeOrElements?: number | number[]) {
         super();
 
-        if (typeof nameOrValue === "string") {
-            this.name = nameOrValue;
-            if (values !== undefined) {
-                this.values = values;
+        // Set properties
+        if (typeof nameSizeElements === "string") {
+            this.name = nameSizeElements;
+            if (typeof sizeOrElements === "number") {
+                this.#ints = new Array<number>(sizeOrElements);
+            } else if (sizeOrElements instanceof Array<number>) {
+                this.push(...sizeOrElements);
             }
-        } else if (nameOrValue instanceof Int32Array) {
-            this.values = nameOrValue;
+        } else if (typeof nameSizeElements === "number") {
+            this.#ints = new Array<number>(nameSizeElements);
+        } else if (nameSizeElements instanceof Array<number>) {
+            this.push(...nameSizeElements);
         }
+
+        // Return proxy for handling index signature
+        return new Proxy(this, {
+            get(target, prop) {
+                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
+                    return target.#ints[Number(prop)];
+                } else if (typeof target[prop] === "function") {
+                    return target[prop].bind(target);
+                } else {
+                    return target[prop];
+                }
+            },
+            set(target, prop, value) {
+                if (typeof prop === "string" && Number.isSafeInteger(Number(prop)) && Number.isSafeInteger(Number(value))) {
+                    const key = Number(prop);
+                    const val = Number(value);
+                    if (key < 0 || key >= target.#ints.length) {
+                        throw new RangeError("Index is outside the bounds of this array.");
+                    }
+                    if (val < NbtInt.MIN_VALUE || val > NbtInt.MAX_VALUE) {
+                        throw new RangeError(`Value must be an integer from ${NbtInt.MIN_VALUE} to ${NbtInt.MAX_VALUE}, inclusive.`);
+                    }
+                    target.#ints[key] = val;
+                    return true;
+                }
+                return Reflect.set(target, prop, value);
+            },
+        });
+    }
+
+    // Set up iterator for the class
+    [Symbol.iterator](): IterableIterator<number> {
+        return this.#ints.values();
+    }
+
+    // Set up index signature for accessing elements
+    [prop: string | symbol]: any;
+
+    /**
+     * Gets the length of the array.
+     */
+    public get length(): number {
+        return this.#ints.length;
     }
 
     public get tagType(): NbtTagType {
         return NbtTagType.IntArray;
     }
 
-    /**
-     * Gets or sets the value of this tag.
-     * The value is stored as-is and is NOT cloned.
-     */
-    public get values(): Int32Array {
-        return this.#ints;
-    }
-    public set values(value: Int32Array) {
-        this.#ints = value;
-    }
-
     public clone(): NbtTag {
         if (this.name !== undefined) {
-            return new NbtIntArray(this.name, new Int32Array(this.values));
+            return new NbtIntArray(this.name, this.#ints.slice());
         } else {
-            return new NbtIntArray(new Int32Array(this.values));
+            return new NbtIntArray(this.#ints.slice());
         }
+    }
+
+    /**
+     * Removes the last element from this `NbtIntArray` and returns it.
+     * @returns The value of the element that was removed,
+     * or undefined if the array was empty.
+     */
+    public pop(): number | undefined {
+        return this.#ints.pop();
+    }
+
+    /**
+     * Appends new elements to the end of this `NbtIntArray`.
+     * @param elements The elements to add.
+     * @returns The new length of the array.
+     * @throws {RangeError} Thrown if a value in `elements` not a 4-byte signed integer.
+     */
+    public push(...elements: number[]): number {
+        // Validate elements
+        for (const el of elements) {
+            if (!Number.isSafeInteger(el) || el < NbtInt.MIN_VALUE || el > NbtInt.MAX_VALUE) {
+                throw new RangeError(`Value must be an integer from ${NbtInt.MIN_VALUE} to ${NbtInt.MAX_VALUE}, inclusive.`);
+            }
+            this.#ints.push(el);
+        }
+
+        return this.#ints.length;
+    }
+
+    /**
+     * Removes the first element from an array and returns it.
+     * @returns The value of the element that was removed,
+     * or undefined if the array was empty.
+     */
+    public shift(): number | undefined {
+        return this.#ints.shift();
+    }
+
+    /**
+     * Inserts new elements at the start of this `NbtIntArray`.
+     * @param elements The elements to add.
+     * @returns The new length of the array.
+     * @throws {RangeError} Thrown if a value in `elements` not a 4-byte signed integer.
+     */
+    public unshift(...elements: number[]): number {
+        // Validate elements (reverse so the order of elements is maintained)
+        for (let i = elements.length - 1; i >= 0; i--) {
+            const el = elements[i];
+            if (!Number.isSafeInteger(el) || el < NbtInt.MIN_VALUE || el > NbtInt.MAX_VALUE) {
+                throw new RangeError(`Value must be an integer from ${NbtInt.MIN_VALUE} to ${NbtInt.MAX_VALUE}, inclusive.`);
+            }
+            this.#ints.unshift(el);
+        }
+
+        return this.#ints.length;
     }
 
     public toString(indentString = NbtTag.defaultIndentString, indentLevel = 0): string {

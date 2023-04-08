@@ -332,9 +332,9 @@ export class NbtFile {
                     throw new NbtFormatError("Negative length given in TAG_Int_Array");
                 }
                 // Read values
-                const values = new Int32Array(length);
+                const values: number[] = [];
                 for (let i = 0; i < length; i++) {
-                    values[i] = reader.readInt32();
+                    values.push(reader.readInt32());
                 }
                 return new NbtIntArray(values);
             }
@@ -345,9 +345,9 @@ export class NbtFile {
                     throw new NbtFormatError("Negative length given in TAG_Long_Array");
                 }
                 // Read values
-                const values = new BigInt64Array(length);
+                const values: bigint[] = [];
                 for (let i = 0; i < length; i++) {
-                    values[i] = reader.readInt64();
+                    values.push(reader.readInt64());
                 }
                 return new NbtLongArray(values);
             }
@@ -454,33 +454,33 @@ export class NbtFile {
 
             case NbtTagType.ByteArray:
                 // Write array length
-                writer.writeInt32((tag as NbtByteArray).values.length);
+                writer.writeInt32((tag as NbtByteArray).length);
                 // Write values
-                for (const byte of (tag as NbtByteArray).values) {
+                for (const byte of tag as NbtByteArray) {
                     writer.writeByte(byte);
                 }
                 break;
 
             case NbtTagType.IntArray:
                 // Write array length
-                writer.writeInt32((tag as NbtIntArray).values.length);
+                writer.writeInt32((tag as NbtIntArray).length);
                 // Write values
-                for (const int of (tag as NbtIntArray).values) {
+                for (const int of tag as NbtIntArray) {
                     writer.writeInt32(int);
                 }
                 break;
 
             case NbtTagType.LongArray:
                 // Write array length
-                writer.writeInt32((tag as NbtLongArray).values.length);
+                writer.writeInt32((tag as NbtLongArray).length);
                 // Write values
-                for (const long of (tag as NbtLongArray).values) {
+                for (const long of tag as NbtLongArray) {
                     writer.writeInt64(long);
                 }
                 break;
 
             case NbtTagType.Compound:
-                for (const childTag of (tag as NbtCompound).tags) {
+                for (const [, childTag] of tag as NbtCompound) {
                     this.#writeTag(childTag, writer);
                 }
                 writer.writeTagType(NbtTagType.End);

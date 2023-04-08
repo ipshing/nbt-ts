@@ -1,43 +1,107 @@
 import { NbtTag } from "./NbtTag";
 import { NbtTagType } from "../Enums";
+import { NbtByte } from "./NbtByte";
 
 /**
  * An NBT tag containing an array of signed byte values.
  */
 export class NbtByteArray extends NbtTag {
-    #bytes: Int8Array = new Int8Array();
+    #bytes: number[] = [];
 
     /**
-     * Creates an unnamed `NbtByteArray` tag with an empty array of bytes.
+     * Creates an unnamed, empty `NbtByteArray` tag.
      */
     constructor();
     /**
-     * Creates an `NbtByteArray` tag with the given name and an empty array of bytes.
+     * Creates an empty `NbtByteArray` tag with the given name.
      * @param tagName The name to assign to this tag.
      */
     constructor(tagName: string);
     /**
-     * Creates an unnamed `NbtByteArray` tag containing the given array of bytes.
-     * @param values The byte array to assign to this tag.
+     * Creates an unnamed`NbtByteArray` tag with the given length.
+     * All elements in the array will default to 0.
+     * @param arrayLength The starting length of the array.
      */
-    constructor(values: Int8Array);
+    constructor(arrayLength: number);
+    /**
+     * Creates an unnamed `NbtByteArray` tag containing the given array of bytes.
+     * @param elements The byte array to assign to this tag.
+     * @throws {RangeError} Thrown if a value in `elements` not a valid signed byte.
+     */
+    constructor(elements: number[]);
+    /**
+     * Creates an `NbtByteArray` tag with the given name and length.
+     * All elements in the array will default to 0.
+     * @param tagName The name to assign to this tag.
+     * @param arrayLength The starting length of the array.
+     */
+    constructor(tagName: string, arrayLength: number);
     /**
      * Creates an `NbtByteArray` tag with the given name, containing the given array of bytes.
      * @param tagName The name to assign to this tag.
-     * @param values The byte array to assign to this tag.
+     * @param elements The byte array to assign to this tag.
+     * @throws {RangeError} Thrown if a value in `elements` not a valid signed byte.
      */
-    constructor(tagName: string, values: Int8Array);
-    constructor(nameOrValue?: string | Int8Array, values?: Int8Array) {
+    constructor(tagName: string, elements: number[]);
+    constructor(nameSizeElements?: string | number | number[], sizeOrElements?: number | number[]) {
         super();
 
-        if (typeof nameOrValue === "string") {
-            this.name = nameOrValue;
-            if (values !== undefined) {
-                this.values = values;
+        // Set properties
+        if (typeof nameSizeElements === "string") {
+            this.name = nameSizeElements;
+            if (typeof sizeOrElements === "number") {
+                this.#bytes = new Array<number>(sizeOrElements);
+            } else if (sizeOrElements instanceof Array<number>) {
+                this.push(...sizeOrElements);
             }
-        } else if (nameOrValue instanceof Int8Array) {
-            this.values = nameOrValue;
+        } else if (typeof nameSizeElements === "number") {
+            this.#bytes = new Array<number>(nameSizeElements);
+        } else if (nameSizeElements instanceof Array<number>) {
+            this.push(...nameSizeElements);
         }
+
+        // Return proxy for handling index signature
+        return new Proxy(this, {
+            get(target, prop) {
+                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
+                    return target.#bytes[Number(prop)];
+                } else if (typeof target[prop] === "function") {
+                    return target[prop].bind(target);
+                } else {
+                    return target[prop];
+                }
+            },
+            set(target, prop, value) {
+                if (typeof prop === "string" && Number.isSafeInteger(Number(prop)) && Number.isSafeInteger(Number(value))) {
+                    const key = Number(prop);
+                    const val = Number(value);
+                    if (key < 0 || key >= target.#bytes.length) {
+                        throw new RangeError("Index is outside the bounds of this array.");
+                    }
+                    if (val < NbtByte.MIN_VALUE || val > NbtByte.MAX_VALUE) {
+                        throw new RangeError(`Value must be an integer from ${NbtByte.MIN_VALUE} to ${NbtByte.MAX_VALUE}, inclusive.`);
+                    }
+                    target.#bytes[key] = val;
+                    return true;
+                }
+                return Reflect.set(target, prop, value);
+            },
+        });
+    }
+
+    // Set up iterator for the class
+    [Symbol.iterator](): IterableIterator<number> {
+        return this.#bytes.values();
+    }
+
+    // Set up index signature for accessing elements
+    [prop: string | symbol]: any;
+
+    /**
+     * Gets the length of the array.
+     */
+    public get length(): number {
+        return this.#bytes.length;
     }
 
     public get tagType(): NbtTagType {
@@ -45,22 +109,75 @@ export class NbtByteArray extends NbtTag {
     }
 
     /**
-     * Gets or sets the value of this tag.
-     * The value is stored as-is and is NOT cloned.
+     * Returns the value located at the specified index.
+     * @param index The zero-based index of the array.
+     * A negative index will count back from the last item.
      */
-    public get values(): Int8Array {
-        return this.#bytes;
-    }
-    public set values(value: Int8Array) {
-        this.#bytes = value;
+    public at(index: number): number | undefined {
+        return this.#bytes.at(index);
     }
 
     public clone(): NbtTag {
         if (this.name !== undefined) {
-            return new NbtByteArray(this.name, new Int8Array(this.values));
+            return new NbtByteArray(this.name, this.#bytes.slice());
         } else {
-            return new NbtByteArray(new Int8Array(this.values));
+            return new NbtByteArray(this.#bytes.slice());
         }
+    }
+
+    /**
+     * Removes the last element from this `NbtByteArray` and returns it.
+     * @returns The value of the element that was removed,
+     * or undefined if the array was empty.
+     */
+    public pop(): number | undefined {
+        return this.#bytes.pop();
+    }
+
+    /**
+     * Appends new elements to the end of this `NbtByteArray`.
+     * @param elements The elements to add.
+     * @returns The new length of the array.
+     * @throws {RangeError} Thrown if a value in `elements` not a valid signed byte.
+     */
+    public push(...elements: number[]): number {
+        // Validate elements
+        for (const el of elements) {
+            if (!Number.isSafeInteger(el) || el < NbtByte.MIN_VALUE || el > NbtByte.MAX_VALUE) {
+                throw new RangeError(`Value must be an integer from ${NbtByte.MIN_VALUE} to ${NbtByte.MAX_VALUE}, inclusive.`);
+            }
+            this.#bytes.push(el);
+        }
+
+        return this.#bytes.length;
+    }
+
+    /**
+     * Removes the first element from an array and returns it.
+     * @returns The value of the element that was removed,
+     * or undefined if the array was empty.
+     */
+    public shift(): number | undefined {
+        return this.#bytes.shift();
+    }
+
+    /**
+     * Inserts new elements at the start of this `NbtByteArray`.
+     * @param elements The elements to add.
+     * @returns The new length of the array.
+     * @throws {RangeError} Thrown if a value in `elements` not a valid signed byte.
+     */
+    public unshift(...elements: number[]): number {
+        // Validate elements (reverse so the order of elements is maintained)
+        for (let i = elements.length - 1; i >= 0; i--) {
+            const el = elements[i];
+            if (!Number.isSafeInteger(el) || el < NbtByte.MIN_VALUE || el > NbtByte.MAX_VALUE) {
+                throw new RangeError(`Value must be an integer from ${NbtByte.MIN_VALUE} to ${NbtByte.MAX_VALUE}, inclusive.`);
+            }
+            this.#bytes.unshift(el);
+        }
+
+        return this.#bytes.length;
     }
 
     public toString(indentString = NbtTag.defaultIndentString, indentLevel = 0): string {
@@ -76,7 +193,7 @@ export class NbtByteArray extends NbtTag {
         if (this.name !== undefined && this.name.trim().length > 0) {
             output += `("${this.name}")`;
         }
-        output += `: [${this.values.length} bytes]`;
+        output += `: [${this.#bytes.length} bytes]`;
 
         return output;
     }

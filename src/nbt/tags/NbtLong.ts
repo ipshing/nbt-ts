@@ -5,6 +5,9 @@ import { NbtTagType } from "../Enums";
  * An NBT tag containing an 8-byte signed integer value.
  */
 export class NbtLong extends NbtTag {
+    static readonly MIN_VALUE = -9223372036854775808n;
+    static readonly MAX_VALUE = 9223372036854775807n;
+
     #value = 0n;
 
     /**
@@ -55,8 +58,8 @@ export class NbtLong extends NbtTag {
         return this.#value;
     }
     public set value(value: bigint) {
-        if (value < -9223372036854775808n || value > 9223372036854775807n) {
-            throw new RangeError("The value must be an integer from -(2^63) to (2^63 - 1), inclusive.");
+        if (!Number.isSafeInteger(value) || value < NbtLong.MIN_VALUE || value > NbtLong.MAX_VALUE) {
+            throw new RangeError(`Value must be an integer from ${NbtLong.MIN_VALUE} to ${NbtLong.MAX_VALUE}, inclusive.`);
         }
         this.#value = value;
     }
