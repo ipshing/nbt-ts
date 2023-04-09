@@ -129,10 +129,10 @@ export class NbtBinaryStream {
     }
 
     /**
-     * Gets the buffer used by this `NbtBinaryStream` to store its data.
+     * Gets all data written to this `NbtBinaryStream`.
      */
     public get buffer(): Buffer {
-        return this.#buffer;
+        return this.#buffer.subarray(this.#origin, this.#position);
     }
 
     /**
