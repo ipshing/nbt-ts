@@ -77,6 +77,15 @@ export class NbtIntArray extends NbtTag {
         return NbtTagType.IntArray;
     }
 
+    /**
+     * Returns the value located at the specified index.
+     * @param index The zero-based index of the array.
+     * A negative index will count back from the last item.
+     */
+    public at(index: number): number | undefined {
+        return this.#ints.at(index);
+    }
+
     public clone(): NbtTag {
         if (this.name !== undefined) {
             return new NbtIntArray(this.name, this.#ints.slice());

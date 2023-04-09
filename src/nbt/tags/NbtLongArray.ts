@@ -77,6 +77,15 @@ export class NbtLongArray extends NbtTag {
         return NbtTagType.LongArray;
     }
 
+    /**
+     * Returns the value located at the specified index.
+     * @param index The zero-based index of the array.
+     * A negative index will count back from the last item.
+     */
+    public at(index: number): bigint | undefined {
+        return this.#longs.at(index);
+    }
+
     public clone(): NbtTag {
         if (this.name !== undefined) {
             return new NbtLongArray(this.name, this.#longs.slice());
