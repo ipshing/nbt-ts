@@ -2,7 +2,8 @@ import { NbtTag } from "./NbtTag";
 import { NbtTagType } from "../Enums";
 
 /**
- * An NBT tag containing an 8-byte floating-point value.
+ * An NBT tag containing an 8-byte floating-point value
+ * stored to a precision of 15 significant digits.
  */
 export class NbtDouble extends NbtTag {
     #value = 0;
@@ -50,7 +51,7 @@ export class NbtDouble extends NbtTag {
         return this.#value;
     }
     public set value(value: number) {
-        this.#value = value;
+        this.#value = Number(value.toPrecision(15));
     }
 
     public clone(): NbtTag {
