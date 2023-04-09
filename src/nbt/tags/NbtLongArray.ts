@@ -59,43 +59,12 @@ export class NbtLongArray extends NbtTag {
         } else if (nameSizeElements instanceof Array<bigint>) {
             this.push(...nameSizeElements);
         }
-
-        // Return proxy for handling index signature
-        return new Proxy(this, {
-            get(target, prop) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
-                    return target.#longs[Number(prop)];
-                } else if (typeof target[prop] === "function") {
-                    return target[prop].bind(target);
-                } else {
-                    return target[prop];
-                }
-            },
-            set(target, prop, value) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
-                    const key = Number(prop);
-                    const val = BigInt(value); // this will validate the value
-                    if (key < 0 || key >= target.#longs.length) {
-                        throw new RangeError("Index is outside the bounds of this array.");
-                    }
-                    if (val < NbtLong.MIN_VALUE || val > NbtLong.MAX_VALUE) {
-                        throw new RangeError(`Value must be an integer from ${NbtLong.MIN_VALUE} to ${NbtLong.MAX_VALUE}, inclusive.`);
-                    }
-                    target.#longs[key] = val;
-                    return true;
-                }
-                return Reflect.set(target, prop, value);
-            },
-        });
     }
 
     // Set up iterator for the class
     [Symbol.iterator](): IterableIterator<bigint> {
         return this.#longs.values();
     }
-
-    // Set up index signature for accessing elements
-    [prop: string | symbol]: any;
 
     /**
      * Gets the length of the array.
@@ -184,7 +153,7 @@ export class NbtLongArray extends NbtTag {
         if (this.name !== undefined && this.name.trim().length > 0) {
             output += `("${this.name}")`;
         }
-        output += `: [${this.values.length} longs]`;
+        output += `: [${this.length} longs]`;
 
         return output;
     }

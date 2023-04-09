@@ -59,43 +59,12 @@ export class NbtByteArray extends NbtTag {
         } else if (nameSizeElements instanceof Array<number>) {
             this.push(...nameSizeElements);
         }
-
-        // Return proxy for handling index signature
-        return new Proxy(this, {
-            get(target, prop) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
-                    return target.#bytes[Number(prop)];
-                } else if (typeof target[prop] === "function") {
-                    return target[prop].bind(target);
-                } else {
-                    return target[prop];
-                }
-            },
-            set(target, prop, value) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop)) && Number.isSafeInteger(Number(value))) {
-                    const key = Number(prop);
-                    const val = Number(value);
-                    if (key < 0 || key >= target.#bytes.length) {
-                        throw new RangeError("Index is outside the bounds of this array.");
-                    }
-                    if (val < NbtByte.MIN_VALUE || val > NbtByte.MAX_VALUE) {
-                        throw new RangeError(`Value must be an integer from ${NbtByte.MIN_VALUE} to ${NbtByte.MAX_VALUE}, inclusive.`);
-                    }
-                    target.#bytes[key] = val;
-                    return true;
-                }
-                return Reflect.set(target, prop, value);
-            },
-        });
     }
 
     // Set up iterator for the class
     [Symbol.iterator](): IterableIterator<number> {
         return this.#bytes.values();
     }
-
-    // Set up index signature for accessing elements
-    [prop: string | symbol]: any;
 
     /**
      * Gets the length of the array.

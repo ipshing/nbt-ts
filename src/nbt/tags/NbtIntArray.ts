@@ -59,43 +59,12 @@ export class NbtIntArray extends NbtTag {
         } else if (nameSizeElements instanceof Array<number>) {
             this.push(...nameSizeElements);
         }
-
-        // Return proxy for handling index signature
-        return new Proxy(this, {
-            get(target, prop) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop))) {
-                    return target.#ints[Number(prop)];
-                } else if (typeof target[prop] === "function") {
-                    return target[prop].bind(target);
-                } else {
-                    return target[prop];
-                }
-            },
-            set(target, prop, value) {
-                if (typeof prop === "string" && Number.isSafeInteger(Number(prop)) && Number.isSafeInteger(Number(value))) {
-                    const key = Number(prop);
-                    const val = Number(value);
-                    if (key < 0 || key >= target.#ints.length) {
-                        throw new RangeError("Index is outside the bounds of this array.");
-                    }
-                    if (val < NbtInt.MIN_VALUE || val > NbtInt.MAX_VALUE) {
-                        throw new RangeError(`Value must be an integer from ${NbtInt.MIN_VALUE} to ${NbtInt.MAX_VALUE}, inclusive.`);
-                    }
-                    target.#ints[key] = val;
-                    return true;
-                }
-                return Reflect.set(target, prop, value);
-            },
-        });
     }
 
     // Set up iterator for the class
     [Symbol.iterator](): IterableIterator<number> {
         return this.#ints.values();
     }
-
-    // Set up index signature for accessing elements
-    [prop: string | symbol]: any;
 
     /**
      * Gets the length of the array.
@@ -184,7 +153,7 @@ export class NbtIntArray extends NbtTag {
         if (this.name !== undefined && this.name.trim().length > 0) {
             output += `("${this.name}")`;
         }
-        output += `: [${this.values.length} ints]`;
+        output += `: [${this.length} ints]`;
 
         return output;
     }
