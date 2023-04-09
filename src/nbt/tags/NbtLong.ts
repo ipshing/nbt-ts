@@ -58,7 +58,7 @@ export class NbtLong extends NbtTag {
         return this.#value;
     }
     public set value(value: bigint) {
-        if (!Number.isSafeInteger(value) || value < NbtLong.MIN_VALUE || value > NbtLong.MAX_VALUE) {
+        if (value < NbtLong.MIN_VALUE || value > NbtLong.MAX_VALUE) {
             throw new RangeError(`Value must be an integer from ${NbtLong.MIN_VALUE} to ${NbtLong.MAX_VALUE}, inclusive.`);
         }
         this.#value = value;
