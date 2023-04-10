@@ -146,8 +146,9 @@ export class NbtCompound extends NbtTag {
     public has(nameOrTag: string | NbtTag): boolean {
         if (typeof nameOrTag === "string") {
             return this.#tags.has(nameOrTag);
-        } else if (nameOrTag.name !== undefined) {
-            return this.#tags.has(nameOrTag.name);
+        } else if (nameOrTag.name !== undefined && this.#tags.has(nameOrTag.name)) {
+            const maybeTag = this.get(nameOrTag.name);
+            return Object.is(nameOrTag, maybeTag);
         } else {
             return false;
         }
