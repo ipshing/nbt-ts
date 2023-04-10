@@ -69,10 +69,10 @@ export class NbtCompound extends NbtTag {
     }
 
     /**
-     * Gets a collection containing all tags in this `NbtCompound`.
+     * Gets an array containing all the tags in this `NbtCompound`.
      */
-    public get tags(): Set<NbtTag> {
-        return new Set<NbtTag>(this.#tags.values());
+    public get tags(): NbtTag[] {
+        return [...this.#tags.values()];
     }
 
     public get tagType(): NbtTagType {
@@ -146,8 +146,10 @@ export class NbtCompound extends NbtTag {
     public has(nameOrTag: string | NbtTag): boolean {
         if (typeof nameOrTag === "string") {
             return this.#tags.has(nameOrTag);
+        } else if (nameOrTag.name !== undefined) {
+            return this.#tags.has(nameOrTag.name);
         } else {
-            return this.tags.has(nameOrTag);
+            return false;
         }
     }
 
