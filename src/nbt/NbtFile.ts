@@ -106,7 +106,7 @@ export class NbtFile {
      * @param fileName The path to the file containing the NBT data.
      * @param compression The compression method to use for loading the data. Defaults to `NbtCompression.AutoDetect`.
      * @param filter An optional callback used to skip loading certain tags from the file.
-     * The callback should return `true` for any tag that should be read and `false for any
+     * The callback should return `true` for any tag that should be read and `false` for any
      * tag that should be skipped.
      * @throws {Error} Thrown if the decompression failed, the end of the buffer was reached
      * before any data could be read, or the opening tag is not a TAG_Compound.
@@ -148,33 +148,8 @@ export class NbtFile {
             throw new Error("Given NBT buffer does not start with a TAG_Compound");
         }
 
-        // Get the root tag as an NbtCompound and read it
-        nbtFile.rootTag = new NbtCompound(reader.readString());
-
-        // Get the next tag type
-        let tagType = reader.readTagType();
-        // Until an End tag is reached, create a new tag and add to the tree
-        while (tagType !== NbtTagType.End) {
-            // Get the tag's name
-            const tagName = reader.readString();
-
-            // Create new tag
-            const newTag = this.#readTag(tagType, reader, filter);
-            newTag.name = tagName;
-
-            // Apply the filter *after* reading the tag
-            if (filter !== undefined && !filter(newTag)) {
-                // The data has already been consumed, just call continue
-                continue;
-            }
-
-            // Add the tag to the root and set parent
-            nbtFile.rootTag.add(newTag);
-            newTag.parent = nbtFile.rootTag;
-
-            // Get the next type
-            tagType = reader.readTagType();
-        }
+        // Read the root tag and all child tags
+        nbtFile.rootTag = this.#readTag(NbtTagType.Compound, reader, true, filter) as NbtCompound;
 
         return nbtFile;
     }
@@ -281,38 +256,48 @@ export class NbtFile {
      * Reads the next tag and its data.
      * @param tagType The `NbtTagType` of the tag to read.
      * @param reader The `NbtBinaryStream` containing the data.
+     * @param readName Whether the name needs to be pulled from the `reader`.
      * @param filter An optional callback used to skip loading certain tags from the `Buffer`.
      * The callback should return `true` for any tag that should be read and `false for any
      * tag that should be skipped.
      */
-    static #readTag(tagType: NbtTagType, reader: NbtBinaryStream, filter?: (tag: NbtTag) => boolean): NbtTag {
+    static #readTag(tagType: NbtTagType, reader: NbtBinaryStream, readName: boolean, filter?: (tag: NbtTag) => boolean): NbtTag {
         // Create a new tag based on the type and read the tag's data.
         // Value types just need the value read. Arrays will need the
         // length followed by that many reads of the appropriate type.
         // Compounds and Lists will need to recurse.
         switch (tagType) {
             case NbtTagType.Byte:
-                return new NbtByte(reader.readByte());
+                if (readName) return new NbtByte(reader.readString(), reader.readByte());
+                else return new NbtByte(reader.readByte());
 
             case NbtTagType.Short:
+                if (readName) return new NbtShort(reader.readString(), reader.readInt16());
                 return new NbtShort(reader.readInt16());
 
             case NbtTagType.Int:
+                if (readName) return new NbtInt(reader.readString(), reader.readInt32());
                 return new NbtInt(reader.readInt32());
 
             case NbtTagType.Long:
+                if (readName) return new NbtLong(reader.readString(), reader.readInt64());
                 return new NbtLong(reader.readInt64());
 
             case NbtTagType.Float:
+                if (readName) return new NbtFloat(reader.readString(), reader.readFloat());
                 return new NbtFloat(reader.readFloat());
 
             case NbtTagType.Double:
+                if (readName) return new NbtDouble(reader.readString(), reader.readDouble());
                 return new NbtDouble(reader.readDouble());
 
             case NbtTagType.String:
+                if (readName) return new NbtString(reader.readString(), reader.readString());
                 return new NbtString(reader.readString());
 
             case NbtTagType.ByteArray: {
+                // Get name
+                const name = readName ? reader.readString() : undefined;
                 // Get length
                 const length = reader.readInt32();
                 if (length < 0) {
@@ -323,9 +308,13 @@ export class NbtFile {
                 if (values.length < length) {
                     throw new EndOfStreamError("End of stream reached before filling TAG_Byte_Array");
                 }
-                return new NbtByteArray(values);
+                const array = new NbtByteArray(values);
+                array.name = name;
+                return array;
             }
             case NbtTagType.IntArray: {
+                // Get name
+                const name = readName ? reader.readString() : undefined;
                 // Get length
                 const length = reader.readInt32();
                 if (length < 0) {
@@ -336,9 +325,13 @@ export class NbtFile {
                 for (let i = 0; i < length; i++) {
                     values.push(reader.readInt32());
                 }
-                return new NbtIntArray(values);
+                const array = new NbtIntArray(values);
+                array.name = name;
+                return array;
             }
             case NbtTagType.LongArray: {
+                // Get name
+                const name = readName ? reader.readString() : undefined;
                 // Get length
                 const length = reader.readInt32();
                 if (length < 0) {
@@ -349,40 +342,40 @@ export class NbtFile {
                 for (let i = 0; i < length; i++) {
                     values.push(reader.readInt64());
                 }
-                return new NbtLongArray(values);
+                const array = new NbtLongArray(values);
+                array.name = name;
+                return array;
             }
             case NbtTagType.Compound:
                 // Create empty compound
                 const compound = new NbtCompound();
-                // Get the first child tag type
-                let childType = reader.readTagType();
-                // Read in tags until End tag is reached
-                while (childType !== NbtTagType.End) {
-                    // Get the child tag's name
-                    const tagName = reader.readString();
+                compound.name = readName ? reader.readString() : undefined;
+
+                while (true) {
+                    // Get the next child tag type
+                    const childType = reader.readTagType();
+
+                    if (childType === NbtTagType.End) break;
 
                     // Recurse to create the new tag
-                    const childTag = this.#readTag(childType, reader, filter);
-                    childTag.name = tagName;
+                    const childTag = this.#readTag(childType, reader, true, filter);
+
+                    // Add the tag to this compound
+                    compound.add(childTag);
 
                     // Apply the filter *after* reading the tag
                     if (filter !== undefined && !filter(childTag)) {
-                        // The data has already been consumed, just call continue
+                        // The data has already been consumed, remove from compound and continue
+                        compound.delete(childTag);
                         continue;
                     }
-
-                    // Add the tag to this compound and set parent
-                    compound.add(childTag);
-                    childTag.parent = compound;
-
-                    // Get the next child tag type
-                    childType = reader.readTagType();
                 }
                 return compound;
 
             case NbtTagType.List:
                 // Create empty list
                 const list = new NbtList();
+                list.name = readName ? reader.readString() : undefined;
                 // Get list type
                 list.listType = reader.readTagType();
                 // Get length
@@ -394,18 +387,18 @@ export class NbtFile {
                 // Read in items
                 for (let i = 0; i < length; i++) {
                     // Recurse to create the new tag
-                    const childTag = this.#readTag(list.listType, reader, filter);
+                    const childTag = this.#readTag(list.listType, reader, false, filter);
                     // No names in NbtList tags
-
-                    // Apply the filter *after* reading the tag
-                    if (filter !== undefined && !filter(childTag)) {
-                        // The data has already been consumed, just call continue
-                        continue;
-                    }
 
                     // Add tag to this list and set parent
                     list.push(childTag);
-                    childTag.parent = list;
+
+                    // Apply the filter *after* reading the tag
+                    if (filter !== undefined && !filter(childTag)) {
+                        // The data has already been consumed, remove from list and continue
+                        list.remove(childTag);
+                        continue;
+                    }
                 }
                 return list;
 
