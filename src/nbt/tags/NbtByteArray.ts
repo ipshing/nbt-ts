@@ -78,6 +78,13 @@ export class NbtByteArray extends NbtTag {
     }
 
     /**
+     * Gets the values stored in this `NbtByteArray`.
+     */
+    public get values(): number[] {
+        return this.#bytes.slice();
+    }
+
+    /**
      * Returns the value located at the specified index.
      * @param index The zero-based index of the array.
      * A negative index will count back from the last item.
